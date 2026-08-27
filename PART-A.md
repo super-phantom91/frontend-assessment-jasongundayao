@@ -163,3 +163,50 @@ To the person who wanted (a): the table is still slow; it is next. I will not sp
 **Unchanged:** two — **(1)** and **(4)**.
 
 ---
+
+## Section 3 — Review and judgement under pressure
+
+### Q9
+
+**Verdict: request changes.**
+
+1. **`FilterBar.tsx` — `clear`.** `window.location.href = '/products'` is a full reload. That fails AC-2. Call `onChange` with the unfiltered value (empty `suppliers`, rest of `value` preserved) and clear local draft state. Do not assign `location`.
+2. **`FilterBar.tsx` — AC-1 is not actually implemented.** The input writes `draft`; Add appends it; Apply sends `suppliers`. Draft is not flushed on Apply, empty strings can be added, there is no remove, and `value.suppliers` is ignored. Drive the chips from `value.suppliers`, add the draft inside Apply, allow remove.
+3. **`FilterBar.tsx` — the “controlled” claim is false.** `suppliers` and `draft` are still local state; `value` is only read at Apply. Either take `value.suppliers` as the source of truth or do not call it controlled.
+4. **`useProducts.ts`.** `refetchOnMountOrArgChange: true` is unrelated to both ACs, adds traffic, and does not implement clear-without-reload. Revert.
+5. **`src/lib/date.ts` and the “do this everywhere” note.** Out of scope for this ticket. Revert the move; open a separate PR if you want a shared date helper.
+
+**Deliberately skipped.** I did not comment on the missing `Filters` type change (`supplier` → `suppliers`) because it is not in this diff; I would grep before approving even a follow-up.
+
+**ACs**
+
+- **AC-1:** Cannot tell from this diff. The bar builds a `suppliers` array, but we do not see the query, the type, or the API param. I would grep `supplier` / `suppliers` in the products query and confirm the request carries multiple ids.
+- **AC-2:** Not met. `window.location.href` reloads the page by definition.
+
+### Q10
+
+**First 60 minutes**
+
+1. In the two blocked threads, immediately: do not pull, rebase, or push `development`. I am recovering the SHA.
+2. Get the previous `development` SHA from GitHub push events, the force-pusher’s `git reflog`, or a clone that has not fetched.
+3. Restore `development` to that SHA (`push --force-with-lease` once, only to put known-good history back).
+4. Recover the four PR branches from `refs/pull/*/head`, the blocked developers’ local refs, or reflog. Recreate remotes at those SHAs; do not rewrite them.
+5. Confirm CI. Tell the two developers they can fetch.
+
+**Blocked developers.** Minute 0–5: stop, don’t pull. Once restored: fetch; your PR branches are being re-pointed, not discarded.
+
+**Business owner.** Production is unaffected. I do not message them in the first 60 minutes if restore is proceeding. After restore: we rewound a non-production branch, two people were blocked for N minutes, no customer impact. If I cannot restore within about an hour, then I tell them two engineers are blocked and those PRs may slip a day.
+
+**Permanent.** Protect `development`: no force-push, no direct push, PRs required. Engineering lead (and whoever owns repo settings) must agree. The IDE “force” sync setting is personal; the protection is the real change.
+
+### Q11
+
+**To the developer**
+
+I need PR size and tests to change, including yours. Last week’s 900-line merge shipped without tests because of the deadline, not because that size is fine. I will not approve another PR at that size. Split by behaviour so a reviewer can hold it in their head, and add tests for the behaviour you changed. Splitting is not wasted time — it is how we stop the next deadline from rubber-stamping risk. If a ticket cannot land in slices a reviewer can read, we split the ticket before you write it, not in review. I’ll pair on the first split. This is the standard I am holding the whole team to, not a comment on your ability.
+
+**To the business owner**
+
+We can ship faster without the shortcut that bit us last week. Large, untested changes look quick and then cost us once they are live. I am asking the team to break work into smaller pieces we can actually check. That will feel slightly slower on a single ticket and faster across the month. If a date is at risk I will tell you early rather than merge something we cannot stand behind.
+
+---
