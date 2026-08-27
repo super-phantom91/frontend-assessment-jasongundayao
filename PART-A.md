@@ -210,3 +210,19 @@ I need PR size and tests to change, including yours. Last week’s 900-line merg
 We can ship faster without the shortcut that bit us last week. Large, untested changes look quick and then cost us once they are live. I am asking the team to break work into smaller pieces we can actually check. That will feel slightly slower on a single ticket and faster across the month. If a date is at risk I will tell you early rather than merge something we cannot stand behind.
 
 ---
+
+## Section 4 — Experience
+
+### Q12
+
+I introduced a date-only timezone bug on an internal purchase-order screen. The API sent `expectedOn: "2024-03-01"` (a civil date). I passed it to `new Date(expectedOn)`, which ES parses as UTC midnight, then rendered with `toLocaleDateString()`. In UK winter that is still 1 March; for a colleague in US Pacific it painted 29 February. Receiving still compared on the warehouse calendar date, so a PO due “today” showed as due yesterday for them and they delayed a shipment.
+
+A warehouse supervisor raised it against the ERP printout. It had been live for nine days, across the first month-end after we shipped the screen.
+
+Mechanically: I used a timezone-aware `Date` as a date-only value. Afterwards I stopped constructing `Date` for civil dates; I format `YYYY-MM-DD` by slicing and a timezone-free formatter. I also added a fixture that asserts the painted string in `America/Los_Angeles` and `Europe/London`. In review I now flag any `new Date(apiString)` on a field that is not an instant.
+
+### Q13
+
+**1. Supplier lead-time exceptions.** Used by planning: SKUs whose confirmed lead time moved by more than two days, with a reason code and acknowledge. A backend engineer on the squad owned the API. We agreed the contract from three real JSON payloads, then froze names in OpenAPI before I built the table. Hardest part: merging ERP, supplier portal, and ack state without double-counting a SKU when two sources moved the same day.
+
+**2. Cycle-count variance.** Used by warehouse team leads on a tablet: counted vs expected per bin, with a photo attach and a “recount / accept / write-off” path. API by a different team; we agreed via a page of examples plus error codes, and they stubbed `text/csv` export last. Hardest part: keeping the grid usable offline for one aisle (service worker + outbox) without letting two leads accept the same variance twice when they both came back online.
